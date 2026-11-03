@@ -9,7 +9,10 @@ class RedisClientFactory {
 
     createClient() {
         const client = redis.createClient({
-            url: this.configService.getValue('redisUrl')
+            url: this.configService.getValue('redisUrl'),
+            // Clients connect while the lobby is still loading modules (event loop blocked for several seconds on a
+            // slow disk); the default 5s timeout then fails the first connect and Lobby.init waits forever.
+            socket: { connectTimeout: 30000 }
         });
 
         return this.wrapClient(client);

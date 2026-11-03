@@ -1306,6 +1306,55 @@ class Card extends EffectSource {
         return true;
     }
 
+    /**
+     * Aemberforge: for the active player's own hand cards, whether a Play action is legal (`canPlay` is also true when
+     * only Discard is), and when a restriction blocks playing it, the names of the cards imposing it (e.g. Scrambler
+     * Storm, Ember Imp), so the client can say why instead of offering the card.
+     */
+    getPlayability(activePlayer, isController) {
+        if (
+            this.location !== 'hand' ||
+            !isController ||
+            activePlayer !== this.game.activePlayer ||
+            !activePlayer.activeHouse
+        ) {
+            return {};
+        }
+        const plays = this.getActions()
+            .filter((action) => action.title && action.title.includes('Play'))
+            .map((action) => {
+                const context = action.createContext(activePlayer);
+                context.ignoreHouse = false;
+                return { context, result: action.meetsRequirements(context, []) };
+            });
+        if (plays.some((p) => !p.result)) {
+            return { canPlayToBoard: true };
+        }
+        const blockedBy = new Set();
+        for (const { context, result } of plays) {
+            if (result !== 'cannotTrigger') {
+                continue;
+            }
+            for (const holder of [activePlayer, this]) {
+                for (const effect of holder.effects) {
+                    if (
+                        effect.type === 'abilityRestrictions' &&
+                        effect
+                            .getValue(holder)
+                            .checkRestriction('play', context, undefined, effect.context)
+                    ) {
+                        blockedBy.add(
+                            effect.context && effect.context.source
+                                ? effect.context.source.name
+                                : 'an effect'
+                        );
+                    }
+                }
+            }
+        }
+        return { canPlayToBoard: false, playBlockedBy: [...blockedBy] };
+    }
+
     getLegalActions(player, ignoreHouse = false) {
         let actions = this.getActions();
         actions = actions.filter((action) => {
@@ -1595,7 +1644,8 @@ class Card extends EffectSource {
             activeProphecy: this.activeProphecy,
             canActivateProphecy:
                 this.type === 'prophecy' ? this.controller.canActivateProphecy(this) : false,
-            accolades: (this.owner.deckData.accolades || []).filter((a) => a.shown)
+            accolades: (this.owner.deckData.accolades || []).filter((a) => a.shown),
+            ...this.getPlayability(activePlayer, isController)
         };
 
         if (tokenCard && isController) {

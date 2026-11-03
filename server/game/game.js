@@ -1746,11 +1746,49 @@ class Game extends EventEmitter {
                 started: this.started,
                 swap: this.swap,
                 useGameTimeLimit: this.useGameTimeLimit,
-                winner: this.winner ? this.winner.name : undefined
+                winner: this.winner ? this.winner.name : undefined,
+                // Aemberforge: the end-of-game recap (winner, reason, duration, each player's stats).
+                recap: this.winner ? this.getRecap() : undefined
             };
         }
 
         return this.getSummary(activePlayerName);
+    }
+
+    /**
+     * Aemberforge: the stats GameStats collected, per player, for the end-of-game recap. Per-card stats are keyed by
+     * card id; names are looked up in the deck list so the client can name the standout cards.
+     */
+    getRecap() {
+        const players = this.getPlayers().map((player) => {
+            const stats = this.stats.getPlayerStats(player) || {};
+            const names = {};
+            for (const entry of (player.deckData && player.deckData.cards) || []) {
+                const card = entry && entry.card;
+                if (card && card.id) {
+                    names[card.id] = card.name;
+                }
+            }
+            const cards = Object.entries(stats.cards || {}).map(([id, c]) => ({
+                id,
+                name: names[id] || id,
+                ...c
+            }));
+            return {
+                name: player.name,
+                deck: player.deckData ? player.deckData.name : undefined,
+                keys: Object.values(player.keys || {}).filter(Boolean).length,
+                turns: player.turn,
+                stats: { ...stats, cards }
+            };
+        });
+        return {
+            winner: this.winner ? this.winner.name : undefined,
+            reason: this.winReason,
+            startedAt: this.startedAt,
+            finishedAt: this.finishedAt,
+            players
+        };
     }
 
     getSummary(activePlayerName, options = {}) {

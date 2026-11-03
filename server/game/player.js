@@ -1510,6 +1510,17 @@ class Player extends GameObject {
             deckData: this.deckData,
             tokenCard: this.tokenCard && this.tokenCard.getShortSummary(),
             prophecyCards: this.getSummaryForCardList(this.prophecyCards, activePlayer),
+            // Aemberforge: what this player currently cannot do, and which card says so (shown as a list of limits).
+            restrictions: this.effects
+                .filter((effect) => effect.type === 'abilityRestrictions')
+                .map((effect) => ({
+                    source:
+                        effect.context && effect.context.source
+                            ? effect.context.source.name
+                            : undefined,
+                    type: effect.getValue(this).type
+                }))
+                .filter((r) => r.source && typeof r.type === 'string'),
             wins: this.wins
         };
 
