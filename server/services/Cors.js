@@ -59,12 +59,23 @@ function createOriginCheck({ extra, production } = {}) {
 function corsMiddleware(isAllowed) {
     return function (req, res, next) {
         const origin = req.headers.origin;
+        if (req.path.startsWith('/img/')) {
+            // Public files (card images, house icons, avatars): readable by any page, and the same answer whether or
+            // not the request had an Origin. Caches (Cloudflare, the app's) keep the first response they see, and
+            // the board needs the header to draw images with WebGL.
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            if (req.method === 'OPTIONS') {
+                return res.status(204).end();
+            }
+
+            return next();
+        }
+
         if (!origin) {
             return next();
         }
 
         if (!req.path.startsWith('/api/')) {
-            // Public files (card images, avatars): readable by any page, same answer for everyone.
             res.setHeader('Access-Control-Allow-Origin', '*');
         } else if (isAllowed(origin)) {
             res.setHeader('Access-Control-Allow-Origin', origin);

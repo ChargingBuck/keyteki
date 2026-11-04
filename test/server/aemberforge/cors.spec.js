@@ -106,6 +106,18 @@ describe('Cors', function () {
             expect(headers['access-control-allow-methods']).toMatch(/POST/);
         });
 
+        it('marks images readable by anyone even without an Origin (so every cached copy has it)', function () {
+            const { headers, nextCalled } = run(mw, { path: '/img/house/logos.png' });
+            expect(headers['access-control-allow-origin']).toBe('*');
+            expect(nextCalled).toBe(true);
+            const pre = run(mw, {
+                origin: 'http://tauri.localhost',
+                path: '/img/cards/x.png',
+                method: 'OPTIONS'
+            });
+            expect(pre.res.statusCode).toBe(204);
+        });
+
         it('serves public files to anyone with the same answer (Cloudflare caches them)', function () {
             const a = run(mw, { origin: 'https://evil.example', path: '/img/cards/valdr.png' });
             expect(a.headers['access-control-allow-origin']).toBe('*');

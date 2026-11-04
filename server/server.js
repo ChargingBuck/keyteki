@@ -77,7 +77,17 @@ class Server {
 
         api.init(app, options);
 
-        app.use(express.static(__dirname + '/../public'));
+        // Aemberforge: images (cards, house icons, avatars) are kept by Cloudflare and the app's cache for 30 days, so
+        // each is downloaded once. Their names change when their content does (uploaded avatars get a new name).
+        app.use(
+            express.static(__dirname + '/../public', {
+                setHeaders: (res, filePath) => {
+                    if (/[\\/]img[\\/]/.test(filePath)) {
+                        res.setHeader('Cache-Control', 'public, max-age=2592000');
+                    }
+                }
+            })
+        );
         if (!this.isDeveloping && this.webClient) {
             app.use(express.static(__dirname + '/../dist'));
         }
