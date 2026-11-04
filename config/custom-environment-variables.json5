@@ -18,6 +18,7 @@
         publicUrl: 'PUBLIC_URL',
         // Aemberforge: invite-only sign-up and lobby chat retention
         inviteCode: 'INVITE_CODE',
+        corsOrigins: 'CORS_ORIGINS',
         chatRetentionDays: 'CHAT_RETENTION_DAYS'
     },
 

@@ -16,6 +16,7 @@ const JwtStrategy = passportJwt.Strategy;
 const ExtractJwt = passportJwt.ExtractJwt;
 
 const UserService = require('./services/UserService.js');
+const { corsMiddleware, originCheckFromConfig } = require('./services/Cors');
 
 class Server {
     /**
@@ -67,6 +68,9 @@ class Server {
         // Only trust the X-Forwarded-* headers added by our own reverse proxy (Traefik), so clients
         // can't spoof their IP address to get around bans and rate limits
         app.set('trust proxy', this.configService.getValueForSection('lobby', 'trustProxy') ?? 1);
+
+        // Aemberforge: the desktop app calls the hub from its own origin (see services/Cors.js).
+        app.use(corsMiddleware(originCheckFromConfig(this.configService)));
 
         app.use(bodyParser.json({ limit: '5mb' }));
         app.use(bodyParser.urlencoded({ extended: false }));

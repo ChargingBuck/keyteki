@@ -11,6 +11,7 @@ const UserService = require('./services/UserService');
 const ConfigService = require('./services/ConfigService');
 const User = require('./models/User');
 const { sortBy } = require('./Array');
+const { originCheckFromConfig, socketCors } = require('./services/Cors');
 
 class Lobby {
     constructor(server, options = {}) {
@@ -40,7 +41,9 @@ class Lobby {
             options.io ||
             new Server(server, {
                 perMessageDeflate: false,
-                pingTimeout: 30000
+                pingTimeout: 30000,
+                // Aemberforge: the desktop app connects from its own origin (polling fallback only).
+                cors: socketCors(originCheckFromConfig(this.configService))
             });
         this.io.use(this.handshake.bind(this));
         this.io.on('connection', this.onConnection.bind(this));

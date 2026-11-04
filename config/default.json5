@@ -28,6 +28,8 @@
         hmacSecret: 'somethingevenmoresecret',
         // Aemberforge: sign-up needs this code when set (empty = open registration, Keyteki's default)
         inviteCode: '',
+        // Aemberforge: more origins allowed to call the hub (comma-separated); the desktop app's are built in.
+        corsOrigins: '',
         // Aemberforge: delete lobby chat older than this many days (0 = keep forever, Keyteki's default)
         chatRetentionDays: 0,
         lowerDeckThreshold: 1,
