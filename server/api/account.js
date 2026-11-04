@@ -16,6 +16,7 @@ const BanlistService = require('../services/BanlistService');
 const PatreonService = require('../services/PatreonService');
 const util = require('../util.js');
 const FailureLimiter = require('../FailureLimiter.js');
+const { inviteCodeMatches } = require('../services/InviteCode');
 const {
     accountTokenLimiter,
     lookupLimiter,
@@ -282,6 +283,19 @@ module.exports.init = function (server, options) {
             message = validatePassword(req.body.password);
             if (message) {
                 return res.send({ success: false, message: message });
+            }
+
+            // Aemberforge: invite-only sign-up when lobby.inviteCode is set.
+            if (
+                !inviteCodeMatches(
+                    configService.getValueForSection('lobby', 'inviteCode'),
+                    req.body.inviteCode
+                )
+            ) {
+                return res.send({
+                    success: false,
+                    message: 'That invite code is not right. Ask whoever invited you for the code.'
+                });
             }
 
             let user = await userService.doesEmailExist(req.body.email);

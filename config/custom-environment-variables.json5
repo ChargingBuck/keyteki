@@ -14,7 +14,11 @@
     https: 'false',
 
     lobby: {
-        port: 'PORT'
+        port: 'PORT',
+        publicUrl: 'PUBLIC_URL',
+        // Aemberforge: invite-only sign-up and lobby chat retention
+        inviteCode: 'INVITE_CODE',
+        chatRetentionDays: 'CHAT_RETENTION_DAYS'
     },
 
     gameNode: {
