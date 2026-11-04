@@ -490,6 +490,24 @@ class Lobby {
             return;
         }
 
+        // Aemberforge: the player may still be connected through another socket: a reconnect that arrived before the
+        // server noticed this one was dead (it can take a ping timeout), or a second window. Then they haven't left:
+        // keep them online (no 'userleft', which their own new connection would also receive), point their entry at
+        // the live socket and leave their table alone.
+        const username = socket.user.username;
+        const live = Object.values(this.sockets).filter(
+            (s) => s.user && s.user.username === username
+        );
+        if (live.length > 0) {
+            const current = live[live.length - 1];
+            this.socketsByName[username] = current;
+            this.users[username] = current.user;
+            logger.info(
+                `user '${username}' closed an old lobby connection (${reason}); still connected`
+            );
+            return;
+        }
+
         this.broadcastUserMessage(socket.user, 'userleft');
 
         delete this.users[socket.user.username];
