@@ -84,6 +84,12 @@ class Server {
                 setHeaders: (res, filePath) => {
                     if (/[\\/]img[\\/]/.test(filePath)) {
                         res.setHeader('Cache-Control', 'public, max-age=2592000');
+                    } else if (/[\\/]updates[\\/]latest\.json$/.test(filePath)) {
+                        // The desktop app's update check: always the current file, never a cached copy.
+                        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                    } else if (/[\\/]updates[\\/]/.test(filePath)) {
+                        // Installers are named by version, so a copy never goes stale.
+                        res.setHeader('Cache-Control', 'public, max-age=2592000');
                     }
                 }
             })
