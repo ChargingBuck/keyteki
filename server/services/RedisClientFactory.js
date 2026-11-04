@@ -1,4 +1,5 @@
 const redis = require('redis');
+const { MemoryRedisClient } = require('./MemoryRedis');
 
 class RedisClientFactory {
     constructor(configService) {
@@ -8,6 +9,11 @@ class RedisClientFactory {
     }
 
     createClient() {
+        // Aemberforge hub: no Redis server, everything in one process (see MemoryRedis.js).
+        if (this.configService.getValue('redisUrl') === 'memory') {
+            return new MemoryRedisClient();
+        }
+
         const client = redis.createClient({
             url: this.configService.getValue('redisUrl'),
             // Clients connect while the lobby is still loading modules (event loop blocked for several seconds on a

@@ -327,7 +327,7 @@ class UserService extends EventEmitter {
     async activateUser(user) {
         try {
             await db.query(
-                'UPDATE "Users" SET "ActivationToken" = NULL, "ActivationExpiry" = NULL, "Verified" = true WHERE "Id" = $1',
+                'UPDATE "Users" SET "ActivationToken" = NULL, "ActivationTokenExpiry" = NULL, "Verified" = true WHERE "Id" = $1',
                 [user.id]
             );
         } catch (err) {

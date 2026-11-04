@@ -4,6 +4,11 @@
     dbPath: 'DB_PATH',
     dbHost: 'DB_HOST',
     dbPort: 'DB_PORT',
+    dbEngine: 'DB_ENGINE',
+    dbDatabase: 'DB_DATABASE',
+    dbUser: 'DB_USER',
+    dbPassword: 'DB_PASSWORD',
+    dbEncrypt: 'DB_ENCRYPT',
     redisUrl: 'REDIS_URL',
     domain: 'thecrucible.online',
     https: 'false',
@@ -15,6 +20,10 @@
     gameNode: {
         name: 'SERVER',
         host: 'HOST',
-        socketioPort: 'PORT'
+        socketioPort: 'PORT',
+        // Aemberforge hub: what the game node advertises to players when it differs from what it listens on
+        // (iisnode gives a named pipe as PORT; TLS ends at IIS).
+        publicPort: 'PUBLIC_PORT',
+        publicProtocol: 'PUBLIC_PROTOCOL'
     }
 }

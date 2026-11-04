@@ -9,6 +9,8 @@
     dbDatabase: 'keyteki',
     dbPassword: 'changemeplease',
     dbPort: 5432,
+    // Aemberforge: 'postgres' (Keyteki's default) or 'mssql' (SQL Server, see server/db/mssql.js)
+    dbEngine: 'postgres',
     minLobbyChatTime: 0, // The time (in seconds) an account has to be registered before it can chat in the lobby
     /*
      * Other global configurations used, but not specified, include:

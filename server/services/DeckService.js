@@ -1431,21 +1431,34 @@ class DeckService {
 
         try {
             await db.transaction(async (client) => {
+                // Aemberforge: SQL Server has no ON CONFLICT; the same upserts as MERGE.
+                const mssql = db.dialect === 'mssql';
                 await db.queryTran(
                     client,
-                    'INSERT INTO "MasterVaultDecks" ("Uuid", "Data", "FetchedAt") VALUES ($1, $2, $3) ' +
-                        'ON CONFLICT ("Uuid") DO UPDATE SET "Data" = EXCLUDED."Data", "FetchedAt" = EXCLUDED."FetchedAt"',
+                    mssql
+                        ? 'MERGE "MasterVaultDecks" AS t USING (SELECT $1 AS "Uuid", $2 AS "Data", $3 AS "FetchedAt") AS s ON t."Uuid" = s."Uuid" ' +
+                              'WHEN MATCHED THEN UPDATE SET "Data" = s."Data", "FetchedAt" = s."FetchedAt" ' +
+                              'WHEN NOT MATCHED THEN INSERT ("Uuid", "Data", "FetchedAt") VALUES (s."Uuid", s."Data", s."FetchedAt");'
+                        : 'INSERT INTO "MasterVaultDecks" ("Uuid", "Data", "FetchedAt") VALUES ($1, $2, $3) ' +
+                              'ON CONFLICT ("Uuid") DO UPDATE SET "Data" = EXCLUDED."Data", "FetchedAt" = EXCLUDED."FetchedAt"',
                     [deckResponse.data.id, data, new Date()]
                 );
 
                 if (cards.length > 0) {
                     await db.queryTran(
                         client,
-                        `INSERT INTO "MasterVaultCards" ("Id", "Card") VALUES ${expand(
-                            cards.length,
-                            2
-                        )} ON CONFLICT ("Id") DO UPDATE SET "Card" = EXCLUDED."Card" ` +
-                            'WHERE "MasterVaultCards"."Card" IS DISTINCT FROM EXCLUDED."Card"',
+                        mssql
+                            ? `MERGE "MasterVaultCards" AS t USING (VALUES ${expand(
+                                  cards.length,
+                                  2
+                              )}) AS s ("Id", "Card") ON t."Id" = s."Id" ` +
+                                  'WHEN MATCHED AND t."Card" <> s."Card" THEN UPDATE SET "Card" = s."Card" ' +
+                                  'WHEN NOT MATCHED THEN INSERT ("Id", "Card") VALUES (s."Id", s."Card");'
+                            : `INSERT INTO "MasterVaultCards" ("Id", "Card") VALUES ${expand(
+                                  cards.length,
+                                  2
+                              )} ON CONFLICT ("Id") DO UPDATE SET "Card" = EXCLUDED."Card" ` +
+                                  'WHERE "MasterVaultCards"."Card" IS DISTINCT FROM EXCLUDED."Card"',
                         flatten(cards.map((card) => [card.id, card]))
                     );
                 }

@@ -7,6 +7,17 @@ const { compareByRelease, getExpansion } = require('../../master-vault-data/src/
 // Keeps each bulk insert well under postgres' limit of 65535 parameters
 const InsertChunkSize = 1000;
 
+/**
+ * Rows per bulk insert for a table with `columns` columns: SQL Server allows 2100 parameters per statement (and 1000
+ * rows per VALUES list), postgres 65535.
+ */
+function chunkSize(columns) {
+    return db.dialect === 'mssql' ? Math.min(1000, Math.floor(2000 / columns)) : InsertChunkSize;
+}
+
+/** Card-name languages to store; CARD_LOCALES=en keeps English only (the Aemberforge hub). Default: all. */
+const CardLocales = process.env.CARD_LOCALES ? process.env.CARD_LOCALES.split(',') : undefined;
+
 function splitList(value) {
     return value ? value.split(',') : [];
 }
@@ -112,7 +123,7 @@ class CardService {
                 await db.queryTran(client, 'DELETE FROM "Cards"');
 
                 const localeRows = [];
-                for (const chunk of chunks(rows, InsertChunkSize)) {
+                for (const chunk of chunks(rows, chunkSize(14))) {
                     const params = flatten(
                         chunk.map(({ card, expansionId, houseId }) => [
                             card.id,
@@ -150,12 +161,15 @@ class CardService {
                     for (const { card, expansionId } of chunk) {
                         const dbId = idsByKey[`${card.id}|${expansionId}`];
                         for (const [language, locale] of Object.entries(card.locale || {})) {
+                            if (CardLocales && !CardLocales.includes(language)) {
+                                continue;
+                            }
                             localeRows.push([dbId, language, locale.name]);
                         }
                     }
                 }
 
-                for (const chunk of chunks(localeRows, InsertChunkSize)) {
+                for (const chunk of chunks(localeRows, chunkSize(3))) {
                     await db.queryTran(
                         client,
                         `INSERT INTO "CardLocaleNames" ("CardId", "Locale", "Name") VALUES ${expand(

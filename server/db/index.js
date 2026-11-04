@@ -5,68 +5,78 @@ const logger = require('../log');
 
 const configService = new ConfigService();
 
-const pool = new Pool({
-    user: configService.getValue('dbUser'),
-    host: configService.getValue('dbHost'),
-    database: configService.getValue('dbDatabase'),
-    password: configService.getValue('dbPassword'),
-    port: configService.getValue('dbPort')
-});
+// Aemberforge: dbEngine 'mssql' uses SQL Server instead (./mssql.js, same interface).
+const engine = configService.getValue('dbEngine');
 
-module.exports = {
-    /**
-     * @param {string} text
-     * @param {any[]} params
-     */
-    query: async (text, params = []) => {
-        logger.debug(text, params);
-        let res = await pool.query(text, params);
+const pool =
+    engine === 'mssql'
+        ? undefined
+        : new Pool({
+              user: configService.getValue('dbUser'),
+              host: configService.getValue('dbHost'),
+              database: configService.getValue('dbDatabase'),
+              password: configService.getValue('dbPassword'),
+              port: configService.getValue('dbPort')
+          });
 
-        return res.rows;
-    },
-    queryTran: async (client, text, params = []) => {
-        logger.debug(text, params);
-        let res = await client.query(text, params);
+module.exports =
+    engine === 'mssql'
+        ? require('./mssql')
+        : {
+              dialect: 'postgres',
+              /**
+               * @param {string} text
+               * @param {any[]} params
+               */
+              query: async (text, params = []) => {
+                  logger.debug(text, params);
+                  let res = await pool.query(text, params);
 
-        return res.rows;
-    },
-    startTransaction: async () => {
-        let client = await pool.connect();
+                  return res.rows;
+              },
+              queryTran: async (client, text, params = []) => {
+                  logger.debug(text, params);
+                  let res = await client.query(text, params);
 
-        try {
-            await client.query('BEGIN');
-        } catch (err) {
-            client.release();
+                  return res.rows;
+              },
+              startTransaction: async () => {
+                  let client = await pool.connect();
 
-            throw err;
-        }
+                  try {
+                      await client.query('BEGIN');
+                  } catch (err) {
+                      client.release();
 
-        return client;
-    },
-    /**
-     * Runs the callback inside a transaction on a single pooled connection, committing if it
-     * succeeds and rolling back if it throws. Use queryTran with the client it is given.
-     * @template T
-     * @param {(client: import('pg').PoolClient) => Promise<T>} callback
-     * @returns {Promise<T>}
-     */
-    transaction: async (callback) => {
-        const client = await module.exports.startTransaction();
+                      throw err;
+                  }
 
-        try {
-            const result = await callback(client);
-            await client.query('COMMIT');
+                  return client;
+              },
+              /**
+               * Runs the callback inside a transaction on a single pooled connection, committing if it
+               * succeeds and rolling back if it throws. Use queryTran with the client it is given.
+               * @template T
+               * @param {(client: import('pg').PoolClient) => Promise<T>} callback
+               * @returns {Promise<T>}
+               */
+              transaction: async (callback) => {
+                  const client = await module.exports.startTransaction();
 
-            return result;
-        } catch (err) {
-            await client.query('ROLLBACK');
+                  try {
+                      const result = await callback(client);
+                      await client.query('COMMIT');
 
-            throw err;
-        } finally {
-            client.release();
-        }
-    },
-    shutdown: async () => {
-        await pool.end();
-    }
-};
+                      return result;
+                  } catch (err) {
+                      await client.query('ROLLBACK');
+
+                      throw err;
+                  } finally {
+                      client.release();
+                  }
+              },
+              shutdown: async () => {
+                  await pool.end();
+              }
+          };

@@ -22,7 +22,11 @@ const HealthServer = require('./healthserver.js');
 const { checkSecrets } = require('../configCheck');
 
 class GameServer {
-    constructor() {
+    /**
+     * @param {{ httpServer?: import('http').Server }} [hubOptions] httpServer: share this server (the Aemberforge hub, with
+     *   the lobby) instead of listening on a port of its own; no health server either (one port only).
+     */
+    constructor(hubOptions = {}) {
         this.configService = new ConfigService();
         checkSecrets(this.configService, ['secret']);
         const sentryDsn = this.configService.getValue('sentryDsn');
@@ -63,9 +67,11 @@ class GameServer {
         this.gameSocket.on('onCloseGame', this.onCloseGame.bind(this));
         this.gameSocket.on('onCardData', this.onCardData.bind(this));
 
-        var server = undefined;
+        var server = hubOptions.httpServer;
 
-        if (!privateKey || !certificate) {
+        if (server) {
+            // Shared with the lobby: it already listens.
+        } else if (!privateKey || !certificate) {
             server = http.createServer();
         } else {
             server = https.createServer({ key: privateKey, cert: certificate });
@@ -73,7 +79,9 @@ class GameServer {
 
         const socketioPort = this.configService.getValueForSection('gameNode', 'socketioPort');
 
-        server.listen(process.env.PORT || socketioPort, '0.0.0.0');
+        if (!hubOptions.httpServer) {
+            server.listen(process.env.PORT || socketioPort, '0.0.0.0');
+        }
 
         let options = {
             perMessageDeflate: false,
@@ -126,8 +134,10 @@ class GameServer {
 
         setInterval(() => this.clearStaleAndFinishedGames(), 30 * 1000);
 
-        this.healthServer = new HealthServer(this);
-        this.healthServer.start();
+        if (!hubOptions.httpServer) {
+            this.healthServer = new HealthServer(this);
+            this.healthServer.start();
+        }
 
         if (process.env.SCENARIO) {
             require('../devtools/scenario/host.js').install(this, process.env.SCENARIO);

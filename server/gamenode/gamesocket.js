@@ -101,11 +101,14 @@ class GameSocket extends EventEmitter {
         const helloData = {
             maxGames: this.isDraining ? 0 : config.maxGames,
             version: this.version,
-            port:
-                process.env.NODE_ENV === 'production'
-                    ? 80
-                    : process.env.PORT || config.gameNode.socketioPort,
-            protocol: this.protocol,
+            port: this.configService.getValueForSection('gameNode', 'publicPort')
+                ? Number(this.configService.getValueForSection('gameNode', 'publicPort'))
+                : process.env.NODE_ENV === 'production'
+                ? 80
+                : process.env.PORT || config.gameNode.socketioPort,
+            protocol:
+                this.configService.getValueForSection('gameNode', 'publicProtocol') ||
+                this.protocol,
             games: games,
             draining: this.isDraining
         };

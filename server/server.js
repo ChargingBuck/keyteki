@@ -18,7 +18,13 @@ const ExtractJwt = passportJwt.ExtractJwt;
 const UserService = require('./services/UserService.js');
 
 class Server {
-    constructor(isDeveloping) {
+    /**
+     * @param {boolean} isDeveloping
+     * @param {{ webClient?: boolean }} [options] webClient false (Aemberforge hub): API, sockets and /public only,
+     *   no Keyteki web client (no Vite middleware in development, no dist/ in production).
+     */
+    constructor(isDeveloping, options = {}) {
+        this.webClient = options.webClient !== false;
         this.configService = new ConfigService();
 
         this.userService = new UserService(this.configService);
@@ -68,11 +74,13 @@ class Server {
         api.init(app, options);
 
         app.use(express.static(__dirname + '/../public'));
-        if (!this.isDeveloping) {
+        if (!this.isDeveloping && this.webClient) {
             app.use(express.static(__dirname + '/../dist'));
         }
 
-        if (this.isDeveloping) {
+        if (!this.webClient) {
+            // Aemberforge hub: nothing else to serve.
+        } else if (this.isDeveloping) {
             const { createViteMiddleware } = await import('./vite-dev.mjs');
             const { vite, templatePath } = await createViteMiddleware({
                 root: path.join(__dirname, '..')
