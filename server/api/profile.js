@@ -45,38 +45,38 @@ module.exports.init = function (server) {
         res.send({ success: false, message: 'The picture could not be saved. Try again later.' });
     };
 
-    // Body: { image: base64 PNG / JPEG / WebP }. Stored as a 256x256 PNG.
-    server.put(
-        '/api/profile/:username/avatar',
-        passport.authenticate('jwt', { session: false }),
-        wrapAsync(async function (req, res) {
-            if (!own(req, res)) {
-                return;
-            }
+    const setAvatar = wrapAsync(async function (req, res) {
+        if (!own(req, res)) {
+            return;
+        }
 
-            try {
-                const avatar = await avatarStore.set(req.user.username, req.body && req.body.image);
-                res.send({ success: true, avatar });
-            } catch (err) {
-                handle(res, err);
-            }
-        })
-    );
+        try {
+            const avatar = await avatarStore.set(req.user.username, req.body && req.body.image);
+            res.send({ success: true, avatar });
+        } catch (err) {
+            handle(res, err);
+        }
+    });
 
-    server.delete(
-        '/api/profile/:username/avatar',
-        passport.authenticate('jwt', { session: false }),
-        wrapAsync(async function (req, res) {
-            if (!own(req, res)) {
-                return;
-            }
+    const clearAvatar = wrapAsync(async function (req, res) {
+        if (!own(req, res)) {
+            return;
+        }
 
-            try {
-                await avatarStore.clear(req.user.username);
-                res.send({ success: true });
-            } catch (err) {
-                handle(res, err);
-            }
-        })
-    );
+        try {
+            await avatarStore.clear(req.user.username);
+            res.send({ success: true });
+        } catch (err) {
+            handle(res, err);
+        }
+    });
+
+    const jwt = passport.authenticate('jwt', { session: false });
+
+    // Body: { image: base64 PNG / JPEG / WebP }. Stored as a 256x256 PNG. The app uses the POST forms: some IIS hosts
+    // (Winhost) answer PUT and DELETE themselves (WebDAV) before they reach Node.
+    server.post('/api/profile/:username/avatar', jwt, setAvatar);
+    server.post('/api/profile/:username/avatar/remove', jwt, clearAvatar);
+    server.put('/api/profile/:username/avatar', jwt, setAvatar);
+    server.delete('/api/profile/:username/avatar', jwt, clearAvatar);
 };
