@@ -1355,6 +1355,38 @@ class Card extends EffectSource {
         return { canPlayToBoard: false, playBlockedBy: [...blockedBy] };
     }
 
+    /**
+     * Aemberforge: for the active player's own creatures and artifacts in play, what clicking the card would offer
+     * right now (the same check as the menu that opens): 'fight', 'reap', 'removeStun' and 'action' (a card's own
+     * action or omni ability). Lets the client show a Reap / Fight / Remove Stun / Use Ability button only when the
+     * game would allow it, e.g. no Reap on a creature that can't reap.
+     */
+    getUsability(activePlayer, isController) {
+        if (
+            this.location !== 'play area' ||
+            !isController ||
+            activePlayer !== this.game.activePlayer ||
+            !activePlayer.activeHouse
+        ) {
+            return {};
+        }
+
+        const uses = new Set();
+        for (const action of this.getLegalActions(activePlayer)) {
+            if (action.fight) {
+                uses.add('fight');
+            } else if (action.reap) {
+                uses.add('reap');
+            } else if (action.unstun) {
+                uses.add('removeStun');
+            } else {
+                uses.add('action');
+            }
+        }
+
+        return { uses: [...uses] };
+    }
+
     getLegalActions(player, ignoreHouse = false) {
         let actions = this.getActions();
         actions = actions.filter((action) => {
@@ -1645,7 +1677,8 @@ class Card extends EffectSource {
             canActivateProphecy:
                 this.type === 'prophecy' ? this.controller.canActivateProphecy(this) : false,
             accolades: (this.owner.deckData.accolades || []).filter((a) => a.shown),
-            ...this.getPlayability(activePlayer, isController)
+            ...this.getPlayability(activePlayer, isController),
+            ...this.getUsability(activePlayer, isController)
         };
 
         if (tokenCard && isController) {
