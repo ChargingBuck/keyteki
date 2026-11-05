@@ -22,6 +22,7 @@ const logger = require('./log');
 const ConfigService = require('./services/ConfigService');
 const { inviteCodeRequired } = require('./services/InviteCode');
 const { startChatRetention } = require('./services/ChatRetention');
+const ServiceFactory = require('./services/ServiceFactory');
 
 const configService = new ConfigService();
 
@@ -39,11 +40,39 @@ process.on('unhandledRejection', (reason) => {
     logger.error('Unhandled promise rejection', reason);
 });
 
+/**
+ * The card list is loaded once at start-up (lobby cache, then the game node). If the database was unreachable then,
+ * both stay empty and no game can be played until a restart: keep trying every 15 seconds, then give the game node
+ * the cards too.
+ */
+function ensureCardData(gameServer, delayMs = 15000) {
+    const cardService = ServiceFactory.cardService(configService);
+    const attempt = async () => {
+        const cards = await cardService.getAllCards().catch(() => undefined);
+        const empty = !cards || Object.keys(cards).length === 0;
+        if (empty) {
+            logger.warn(
+                `Card data not loaded yet (database unreachable?); retrying in ${delayMs / 1000}s`
+            );
+            setTimeout(attempt, delayMs).unref();
+            return;
+        }
+
+        if (!gameServer.cardData || Object.keys(gameServer.cardData).length === 0) {
+            gameServer.onCardData(cards);
+            logger.info('Card data loaded after a retry; games can start');
+        }
+    };
+    // After the game node's own load from the cache had its chance.
+    setTimeout(attempt, 2000).unref();
+}
+
 runServer({ webClient: false })
     .then(({ httpServer }) => {
         // After the lobby is up (its game router is listening for nodes and the card cache is filled), so the node's
         // hello and its card load find them.
-        new GameServer({ httpServer });
+        const gameServer = new GameServer({ httpServer });
+        ensureCardData(gameServer);
         startChatRetention({
             db: require('./db'),
             days: configService.getValueForSection('lobby', 'chatRetentionDays'),

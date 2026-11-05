@@ -1717,6 +1717,8 @@ class Game extends EventEmitter {
             this.timeLimit.checkForTimeLimitReached();
 
             return {
+                // Aemberforge: what this hub supports beyond Keyteki (the client uses them only when listed).
+                features: ['useCard'],
                 adaptive: this.adaptive,
                 cancelPromptUsed: this.cancelPromptUsed,
                 challonge: this.challonge,
